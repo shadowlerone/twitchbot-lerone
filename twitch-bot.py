@@ -32,7 +32,7 @@ def id(*args, **kwargs):
 def shoutout(*args, **kwargs):
 	user = bot.helix.user(args[0])
 	# print(f"printing users: {user}")
-	mods = list(map(lambda x: x['user_name'],bot.helix.moderation()['data']))
+	mods = list(map(lambda x: x['user_name'],bot.helix.api.get('/moderation/moderators', {'broadcaster_id':71100896})['data']))
 	mods.append(bot.channel[1:])
 	print(mods)
 	if kwargs['message'].sender in mods:

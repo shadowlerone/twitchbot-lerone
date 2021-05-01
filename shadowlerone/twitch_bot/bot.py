@@ -8,6 +8,7 @@ import types
 import typing
 import webbrowser
 import twitch
+import requests
 
 from bottle import Bottle, request, response, route, template
 
@@ -22,6 +23,7 @@ class Bot():
 		self.oauth = oauth
 		self.client_id = client_id
 		self.client_secret = client_secret
+		self.scopes = ['moderation:read', 'channel:manage:broadcast','channel:manage:redemptions','channel:read:hype_train', 'channel:read:subscriptions','']
 		self.token = None
 		self.code = None
 		self.code_available = threading.Event()
@@ -32,6 +34,15 @@ class Bot():
 			self.code_available.set()
 			# sys.exit(0)
 			return "<script>close();</script>"
+
+	def get_oauth(self):
+		req = requests.post('https://id.twitch.tv/oauth2/token', {
+			'client_id':self.client_id,
+			'client_secret':self.client_secret,
+			'grant_type':'client_credentials',
+			'scope': " ".join(self.scopes)
+		})
+		self.token = req.json()['access_token']
 
 	def command(self, name: str, desc: str):
 		def c(f):
@@ -45,7 +56,7 @@ class Bot():
 	def handle_message(self, message: twitch.chat.Message) -> None:
 		print(f"Recieved message: {message.text}")
 		match = self.pattern.fullmatch(message.text)
-		message.sender
+		print(message.sender)
 		if match != None:
 			try:
 				response = self.commands[match.group(1)](match.group(2), message= message)
@@ -64,15 +75,16 @@ class Bot():
 		# pass
 		print("bot starting")
 		print("Getting Token")
-		webbrowser.open(f"https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={self.client_id}&redirect_uri=http://localhost&scope=channel:moderate%20moderation:read")
-		print(f"Please go to https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={self.client_id}&redirect_uri=http://localhost&scope=channel:moderate%20moderation:read")
+		# self.get_oauth()
+		# webbrowser.open(f"https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={self.client_id}&redirect_uri=http://localhost&scope={'%20'.join(self.scopes)}")
+		# print(f"Please go to https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={self.client_id}&redirect_uri=http://localhost&scope={'%20'.join(self.scopes)}")
 		
-		self.server = threading.Thread(target=self.app.run, kwargs={'port':80}, daemon=True)
-		self.server.start()
-		self.code_available.wait()
+		# self.server = threading.Thread(target=self.app.run, kwargs={'port':80}, daemon=True)
+		# self.server.start()
+		# self.code_available.wait()
 		# self.server.join()
 		print("Code Obtained")
 		print(f"Code: {self.code}")
-		self.helix = twitch.Helix(client_id=self.client_id, client_secret=self.client_secret, use_cache=True, code=self.code)
+		self.helix = twitch.Helix(client_id=self.client_id, client_secret=self.client_secret, use_cache=True, bearer_token=self.token) #, code=self.code)
 		self.chat = twitch.Chat(channel=self.channel, nickname=self.nickname, oauth=self.oauth, helix=self.helix)
 		self.chat.subscribe(self.handle_message)
